@@ -1,5 +1,6 @@
 package skrunklysappho.embermotor;
 
+import com.rekindled.embers.RegistryManager;
 import com.simibubi.create.AllCreativeModeTabs;
 import com.simibubi.create.AllTags.AllBlockTags;
 import com.simibubi.create.foundation.data.SharedProperties;
@@ -15,11 +16,6 @@ import static com.simibubi.create.foundation.data.TagGen.pickaxeOnly;
 // This code is based on how Create registers its blocks with Registrate. Ngl, I do not fully get how it works
 
 public class CEMBlocks {
-
-    static {
-        // Set what creative mode tab the motor appears in. Right now it's set to Create's base tab
-        CreateEmberMotorMod.REGISTRATE.setCreativeTab(AllCreativeModeTabs.BASE_CREATIVE_TAB);
-    }
 
     public static final BlockEntry<EmberMotorBlock> EMBER_MOTOR =
             CreateEmberMotorMod.REGISTRATE.block("ember_motor", EmberMotorBlock::new)
