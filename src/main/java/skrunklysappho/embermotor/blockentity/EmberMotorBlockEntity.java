@@ -1,13 +1,17 @@
 package skrunklysappho.embermotor.blockentity;
 
+import com.rekindled.embers.api.capabilities.EmbersCapabilities;
 import com.rekindled.embers.api.power.IEmberCapability;
 import com.rekindled.embers.power.DefaultEmberCapability;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import skrunklysappho.embermotor.AllBlocks;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.util.LazyOptional;
+import skrunklysappho.embermotor.CEMBlocks;
 import skrunklysappho.embermotor.block.EmberMotorBlock;
 
 public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
@@ -36,10 +40,24 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
         }
     };
 
+    @Override
+    public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side) {
+        if (!this.remove && cap == EmbersCapabilities.EMBER_CAPABILITY) {
+            return capability.getCapability(cap, side);
+        }
+        return super.getCapability(cap, side);
+    }
+
+    @Override
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        capability.invalidate();
+    }
+
     // Set motor's generated spinny speed in the correct direction based on which way the motor block is facing
     @Override
     public float getGeneratedSpeed() {
-        if (!AllBlocks.EMBER_MOTOR.has(getBlockState()))
+        if (!CEMBlocks.EMBER_MOTOR.has(getBlockState()))
             return 0;
         return convertToDirection(generatedSpeed, getBlockState().getValue(EmberMotorBlock.FACING));
     }
@@ -51,11 +69,19 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
             updateGeneratedRotation();
     }
 
-    public void serverTick(Level level, BlockPos pos, BlockState state, EmberMotorBlockEntity blockEntity) {
+    // Give the motor stress capacity. The value I chose is equal to the stress capacity of four large water wheels
+    // TODO: Make configurable
+    public float calculateAddedStressCapacity() {
+        float capacity = 2048f;
+        this.lastCapacityProvided = capacity;
+        return capacity;
+    }
+
+    public void tick() {
         // Only generate stress units if enough ember is present to consume
-        if (blockEntity.capability.getEmber() >= EMBER_COST) {
+        if (EmberMotorBlockEntity.this.capability.getEmber() >= EMBER_COST) {
             // Consume ember
-            blockEntity.capability.removeAmount(EMBER_COST, true);
+            EmberMotorBlockEntity.this.capability.removeAmount(EMBER_COST, true);
             // Set generatedSpeed to the configured value for when the motor is running
             generatedSpeed = generatedSpeedWhilePowered;
         }
@@ -63,5 +89,6 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
             // When insufficient ember is present to run the motor, set generatedSpeed to 0
             generatedSpeed = 0;
         }
+        updateGeneratedRotation();
     }
 }

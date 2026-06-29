@@ -87,8 +87,11 @@ public class CreateEmberMotorMod
         // Register our mod's ForgeConfigSpec so that Forge can create and load the config file for us
         context.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
 
-        AllBlocks.register();
-        //AllBlockEntityTypes.register();
+        // No clue what this line means, but Registrate doesn't register jack shit without it
+        REGISTRATE.registerEventListeners(modEventBus);
+        // Register blocks and block entities
+        CEMBlocks.register();
+        CEMBlockEntityTypes.register();
     }
 
     private void commonSetup(final FMLCommonSetupEvent event)
