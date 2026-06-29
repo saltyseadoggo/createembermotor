@@ -46,7 +46,9 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
     // More capability shit taken from Embers' mechanical pump
     @Override
     public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side) {
-        if (!this.remove && cap == EmbersCapabilities.EMBER_CAPABILITY) {
+        // The facing check prevents ember from being pushed into the motor through the front
+        // (where the shaft is) by not giving that side the ember capability
+        if (!this.remove && side != this.getBlockState().getValue(EmberMotorBlock.FACING) && cap == EmbersCapabilities.EMBER_CAPABILITY) {
             return capability.getCapability(cap, side);
         }
         return super.getCapability(cap, side);
@@ -103,7 +105,9 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
     // Every second, check if there's enough ember to consume and if so, spin the motor
     // `lazyTick` method comes from Create's `SmartBlockEntity` class
     public void lazyTick() {
+        // Call `lazyTick` method in the class we extend, just in case
         super.lazyTick();
+        // Only run the following code on the server side
         if(level.isClientSide()) return;
 
         // Only generate stress units if enough ember is present to consume
