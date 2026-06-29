@@ -7,7 +7,6 @@ import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.Capability;
@@ -21,15 +20,18 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
     public int generatedSpeed = 0;
     // Set motor's generated speed when it is powered, in RPM
     public static int generatedSpeedWhilePowered = 32;
-    // Set ember cost to run the motor per tick
+    // Set ember cost to run the motor per second
     // TODO: Make configurable
-    public static final double EMBER_COST = 0.5;
+    public static final double EMBER_COST = 5.0;
 
     // Constructor needed by GeneratingKineticBlockEntity
     public EmberMotorBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
         // Set motor's ember capacity
         capability.setEmberCapacity(1000);
+        // Set lazy tick rate so the motor only consumes ember & updates its speed once every second
+        // Lazy ticking functionality comes from Create's `SmartBlockEntity` class
+        setLazyTickRate(20);
     }
 
     // Give motor the ember capability so it can store, receive and consume ember
@@ -41,6 +43,7 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
         }
     };
 
+    // More capability shit taken from Embers' mechanical pump
     @Override
     public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side) {
         if (!this.remove && cap == EmbersCapabilities.EMBER_CAPABILITY) {
@@ -49,6 +52,7 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
         return super.getCapability(cap, side);
     }
 
+    // More capability shit taken from Embers' mechanical pump
     @Override
     public void invalidateCaps() {
         super.invalidateCaps();
@@ -63,6 +67,7 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
         return convertToDirection(generatedSpeed, getBlockState().getValue(EmberMotorBlock.FACING));
     }
 
+    // More kinetic speed shit from Create's creative motor
     @Override
     public void initialize() {
         super.initialize();
@@ -95,7 +100,12 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
         capability.deserializeNBT(nbt);
     }
 
-    public void tick() {
+    // Every second, check if there's enough ember to consume and if so, spin the motor
+    // `lazyTick` method comes from Create's `SmartBlockEntity` class
+    public void lazyTick() {
+        super.lazyTick();
+        if(level.isClientSide()) return;
+
         // Only generate stress units if enough ember is present to consume
         if (EmberMotorBlockEntity.this.capability.getEmber() >= EMBER_COST) {
             // Consume ember
