@@ -109,13 +109,12 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
     public void lazyTick() {
         // Call `lazyTick` method in the class we extend, just in case
         super.lazyTick();
-        // Only run the following code on the server side
-        if(level.isClientSide()) return;
 
         // Only generate stress units if enough ember is present to consume
         if (EmberMotorBlockEntity.this.capability.getEmber() >= emberConsumption) {
-            // Consume ember
-            EmberMotorBlockEntity.this.capability.removeAmount(emberConsumption, true);
+            // Consume ember (only on the server side. I'm guessing trying to do this on the client side
+            // would cause a crash when playing on a server, but I can't test that rn)
+            if (!level.isClientSide) EmberMotorBlockEntity.this.capability.removeAmount(emberConsumption, true);
             // Set generatedSpeed to the configured value for when the motor is running
             generatedSpeed = outputSpeedWhilePowered;
         }
@@ -123,6 +122,7 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
             // When insufficient ember is present to run the motor, set generatedSpeed to 0
             generatedSpeed = 0;
         }
+        // This needs to run on the client for the goggles tooltip to show the correct SU generation for the motor
         updateGeneratedRotation();
     }
 }
