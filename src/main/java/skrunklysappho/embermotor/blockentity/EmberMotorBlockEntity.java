@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
 import skrunklysappho.embermotor.CEMBlocks;
+import skrunklysappho.embermotor.Config;
 import skrunklysappho.embermotor.block.EmberMotorBlock;
 
 public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
@@ -19,10 +20,11 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
     // Store the motor's current generated spinny speed in a variable. By default it's set to 0
     public int generatedSpeed = 0;
     // Set motor's generated speed when it is powered, in RPM
-    public static int generatedSpeedWhilePowered = 32;
+    public static final int outputSpeedWhilePowered = Config.outputSpeed;
     // Set ember cost to run the motor per second
-    // TODO: Make configurable
-    public static final double EMBER_COST = 5.0;
+    public static final double emberConsumption = Config.emberConsumption;
+    // Set stress capacity of the motor
+    public static final float stressCapacity = Config.stressCapacity;
 
     // Constructor needed by GeneratingKineticBlockEntity
     public EmberMotorBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -78,10 +80,10 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
     }
 
     // Give the motor stress capacity. The value I chose is equal to the stress capacity of four large water wheels
-    // For some reason the given value gets multiplied by 32 in game, so we divide it by 32 here to compensate
+    // For some reason the given value gets multiplied by the motor's speed, so we divide it by the speed to compensate
     // TODO: Make configurable
     public float calculateAddedStressCapacity() {
-        float capacity = 2048 / 32f;
+        float capacity = stressCapacity / outputSpeedWhilePowered;
         this.lastCapacityProvided = capacity;
         return capacity;
     }
@@ -111,11 +113,11 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
         if(level.isClientSide()) return;
 
         // Only generate stress units if enough ember is present to consume
-        if (EmberMotorBlockEntity.this.capability.getEmber() >= EMBER_COST) {
+        if (EmberMotorBlockEntity.this.capability.getEmber() >= emberConsumption) {
             // Consume ember
-            EmberMotorBlockEntity.this.capability.removeAmount(EMBER_COST, true);
+            EmberMotorBlockEntity.this.capability.removeAmount(emberConsumption, true);
             // Set generatedSpeed to the configured value for when the motor is running
-            generatedSpeed = generatedSpeedWhilePowered;
+            generatedSpeed = outputSpeedWhilePowered;
         }
         else {
             // When insufficient ember is present to run the motor, set generatedSpeed to 0
