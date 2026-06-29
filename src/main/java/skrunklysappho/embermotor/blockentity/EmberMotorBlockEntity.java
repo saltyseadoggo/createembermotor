@@ -6,6 +6,7 @@ import com.rekindled.embers.power.DefaultEmberCapability;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -70,11 +71,28 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
     }
 
     // Give the motor stress capacity. The value I chose is equal to the stress capacity of four large water wheels
+    // For some reason the given value gets multiplied by 32 in game, so we divide it by 32 here to compensate
     // TODO: Make configurable
     public float calculateAddedStressCapacity() {
-        float capacity = 2048f;
+        float capacity = 2048 / 32f;
         this.lastCapacityProvided = capacity;
         return capacity;
+    }
+
+    // Override NBT data writing method from GeneratingKineticBlockEntity to save motor's ember amount to NBT data
+    // This is needed to prevent the motor from losing all of its ember upon exiting and reentering the world
+    @Override
+    public void write(CompoundTag nbt, boolean clientPacket) {
+        super.write(nbt, clientPacket);
+        capability.writeToNBT(nbt);
+    }
+
+    // Override NBT data reading method from GeneratingKineticBlockEntity to set motor's ember amount from NBT data
+    // This is needed to prevent the motor from losing all of its ember upon exiting and reentering the world
+    @Override
+    public void read(CompoundTag nbt, boolean clientPacket) {
+        super.read(nbt, clientPacket);
+        capability.deserializeNBT(nbt);
     }
 
     public void tick() {
