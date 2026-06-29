@@ -1,6 +1,7 @@
 package skrunklysappho.embermotor;
 
 import com.mojang.logging.LogUtils;
+import com.simibubi.create.foundation.data.CreateRegistrate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.food.FoodProperties;
@@ -60,6 +61,9 @@ public class CreateEmberMotorMod
                 output.accept(EXAMPLE_ITEM.get()); // Add the example item to the tab. For your own tabs, this method is preferred over the event
             }).build());
 
+    // Create our own instance of Create's "registrate" for use in registering our block and blockentity
+    public static final CreateRegistrate REGISTRATE = CreateRegistrate.create(CreateEmberMotorMod.MODID);
+
     public CreateEmberMotorMod(FMLJavaModLoadingContext context)
     {
         IEventBus modEventBus = context.getModEventBus();
@@ -82,6 +86,9 @@ public class CreateEmberMotorMod
 
         // Register our mod's ForgeConfigSpec so that Forge can create and load the config file for us
         context.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+
+        AllBlocks.register();
+        //AllBlockEntityTypes.register();
     }
 
     private void commonSetup(final FMLCommonSetupEvent event)
