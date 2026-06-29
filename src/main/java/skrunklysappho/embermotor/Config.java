@@ -29,8 +29,9 @@ public class Config
             .defineInRange("outputSpeed", 32, 0, 256);
 
     private static final ForgeConfigSpec.IntValue STRESS_CAPACITY = BUILDER
-            .comment("Stress capacity provided by the motor")
-            .defineInRange("stressCapacity", 2048, 0, Integer.MAX_VALUE);
+            .comment("Stress capacity provided by the motor at one RPM")
+            .comment("In game, the actual stress capacity will be this multiplied by outputSpeed")
+            .defineInRange("stressCapacity", 64, 0, Integer.MAX_VALUE);
 
     static final ForgeConfigSpec SPEC = BUILDER.build();
 

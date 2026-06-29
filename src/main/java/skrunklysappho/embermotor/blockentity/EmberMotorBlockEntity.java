@@ -18,13 +18,18 @@ import skrunklysappho.embermotor.block.EmberMotorBlock;
 public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
 
     // Store the motor's current generated spinny speed in a variable. By default it's set to 0
-    public int generatedSpeed = 0;
+
     // Set motor's generated speed when it is powered, in RPM
-    public static final int outputSpeedWhilePowered = Config.outputSpeed;
+    public static final int speedWhilePowered = Config.outputSpeed;
     // Set ember cost to run the motor per second
     public static final double emberConsumption = Config.emberConsumption;
     // Set stress capacity of the motor
     public static final float stressCapacity = Config.stressCapacity;
+
+    // Float containing the motor's current speed
+    protected float motorSpeedCurrent;
+    // Int containing the motor's *upcoming* speed as determined by lazyTick
+    public int motorSpeedNew = 0;
 
     // Constructor needed by GeneratingKineticBlockEntity
     public EmberMotorBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -68,7 +73,7 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
     public float getGeneratedSpeed() {
         if (!CEMBlocks.EMBER_MOTOR.has(getBlockState()))
             return 0;
-        return convertToDirection(generatedSpeed, getBlockState().getValue(EmberMotorBlock.FACING));
+        return convertToDirection(motorSpeedCurrent, getBlockState().getValue(EmberMotorBlock.FACING));
     }
 
     // More kinetic speed shit from Create's creative motor
@@ -79,11 +84,9 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
             updateGeneratedRotation();
     }
 
-    // Give the motor stress capacity. The value I chose is equal to the stress capacity of four large water wheels
-    // For some reason the given value gets multiplied by the motor's speed, so we divide it by the speed to compensate
-    // TODO: Make configurable
+    // Give the motor the stress capacity value designated in the config file
     public float calculateAddedStressCapacity() {
-        float capacity = stressCapacity / outputSpeedWhilePowered;
+        float capacity = stressCapacity;
         this.lastCapacityProvided = capacity;
         return capacity;
     }
@@ -104,11 +107,20 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
         capability.deserializeNBT(nbt);
     }
 
-    // Every second, check if there's enough ember to consume and if so, spin the motor
-    // `lazyTick` method comes from Create's `SmartBlockEntity` class
+    // Every second, consume ember to make the motor spin only if there is enough ember to consume
+    // - `lazyTick` method comes from Create's `SmartBlockEntity` class
+    // - Code adapted from Create Crafts & Additions' electric motor
+    boolean first = true;
     public void lazyTick() {
         // Call `lazyTick` method in the class we extend, just in case
         super.lazyTick();
+        // Code block taken from Create Crafts & Additions' electric motor
+        // Without it, the network's stress as seen on a stressometer or in `/data get block` will be NaN
+        if(first) {
+            motorSpeedCurrent = motorSpeedNew;
+            updateGeneratedRotation();
+            first = false;
+        }
 
         // Only generate stress units if enough ember is present to consume
         if (EmberMotorBlockEntity.this.capability.getEmber() >= emberConsumption) {
@@ -116,13 +128,22 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
             // would cause a crash when playing on a server, but I can't test that rn)
             if (!level.isClientSide) EmberMotorBlockEntity.this.capability.removeAmount(emberConsumption, true);
             // Set generatedSpeed to the configured value for when the motor is running
-            generatedSpeed = outputSpeedWhilePowered;
+            motorSpeedNew = speedWhilePowered;
         }
         else {
             // When insufficient ember is present to run the motor, set generatedSpeed to 0
-            generatedSpeed = 0;
+            motorSpeedNew = 0;
         }
         // This needs to run on the client for the goggles tooltip to show the correct SU generation for the motor
-        updateGeneratedRotation();
+        updateGeneratedRotation(motorSpeedNew);
+    }
+
+    // Set the motor's current speed to the new speed value determined by `lazyTick`
+    // - If we use `motorSpeedNew` in the `getGeneratedSpeed` method, it introduces a bug where the motor's stress capacity
+    //   increases after leaving and reentering the world. Adding this middle step fixes the bug, though I don't know why
+    // - Code adapted from Create Crafts & Additions' electric motor
+    public void updateGeneratedRotation(int newSpeed) {
+        motorSpeedCurrent = newSpeed;
+        super.updateGeneratedRotation();
     }
 }

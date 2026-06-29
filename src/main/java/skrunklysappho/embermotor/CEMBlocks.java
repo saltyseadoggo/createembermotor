@@ -3,7 +3,9 @@ package skrunklysappho.embermotor;
 import com.rekindled.embers.RegistryManager;
 import com.simibubi.create.AllCreativeModeTabs;
 import com.simibubi.create.AllTags.AllBlockTags;
+import com.simibubi.create.api.stress.BlockStressValues;
 import com.simibubi.create.foundation.data.SharedProperties;
+import com.simibubi.create.infrastructure.config.CStress;
 import com.tterrag.registrate.util.entry.BlockEntry;
 import net.minecraft.world.level.material.MapColor;
 import skrunklysappho.embermotor.block.EmberMotorBlock;
@@ -25,9 +27,6 @@ public class CEMBlocks {
                     .tag(AllBlockTags.SAFE_NBT.tag)
                     .transform(pickaxeOnly())
                     .blockstate(new EmberMotorBlockStateGen()::generate)
-                    // TODO: Set stress capacity to smth more reasonable, and make it configurable
-                    // transform(CStress.setCapacity(16384.0))
-                    //.onRegister(BlockStressValues.setGeneratorSpeed(256, true))
                     .item()
                     .transform(customItemModel())
                     .register();
