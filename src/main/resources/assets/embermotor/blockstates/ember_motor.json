@@ -1,0 +1,27 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "embermotor:block/ember_motor",
+      "x": 90
+    },
+    "facing=east": {
+      "model": "embermotor:block/ember_motor",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "embermotor:block/ember_motor"
+    },
+    "facing=south": {
+      "model": "embermotor:block/ember_motor",
+      "y": 180
+    },
+    "facing=up": {
+      "model": "embermotor:block/ember_motor",
+      "x": 270
+    },
+    "facing=west": {
+      "model": "embermotor:block/ember_motor",
+      "y": 270
+    }
+  }
+}

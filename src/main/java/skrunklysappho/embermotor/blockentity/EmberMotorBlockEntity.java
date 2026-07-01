@@ -17,13 +17,9 @@ import skrunklysappho.embermotor.block.EmberMotorBlock;
 
 public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
 
-    // Store the motor's current generated spinny speed in a variable. By default it's set to 0
-
-    // Set motor's generated speed when it is powered, in RPM
+    // Grab the motor's output speed, ember consumption and stress capacity values from the config
     public static final int speedWhilePowered = Config.outputSpeed;
-    // Set ember cost to run the motor per second
     public static final double emberConsumption = Config.emberConsumption;
-    // Set stress capacity of the motor
     public static final float stressCapacity = Config.stressCapacity;
 
     // Float containing the motor's current speed
@@ -37,7 +33,7 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
         // Set motor's ember capacity
         capability.setEmberCapacity(1000);
         // Set lazy tick rate so the motor only consumes ember & updates its speed once every second
-        // Lazy ticking functionality comes from Create's `SmartBlockEntity` class
+        // - Lazy ticking functionality comes from Create's `SmartBlockEntity` class
         setLazyTickRate(20);
     }
 
