@@ -1,6 +1,5 @@
 {
 	"format_version": "1.9.0",
-	"credit": "Made with Blockbench",
 	"textures": {
 		"0": "embermotor:block/ember_motor_side",
 		"1": "embers:block/stamp_motor",

@@ -1,0 +1,24 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "category": "misc",
+    "pattern": [
+        "W",
+        "C",
+        "S"
+    ],
+    "key": {
+      "W": {
+        "item": "embers:winding_gears"
+      },
+      "C": {
+        "item": "embers:mechanical_core"
+      },
+      "S": {
+        "item": "create:shaft"
+      }
+    },
+    "result": {
+      "item": "embermotor:ember_motor"
+    },
+    "show_notification": true
+}

@@ -6,7 +6,7 @@
 		"2": "embermotor:block/ember_motor_back",
 		"3": "embermotor:block/ember_motor_front",
 		"1_0": "create:block/axis",
-		"particle": "embers:block/ember_motor_side"
+		"particle": "embermotor:block/ember_motor_side"
 	},
 	"elements": [
 		{
