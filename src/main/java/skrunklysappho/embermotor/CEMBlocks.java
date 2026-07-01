@@ -1,9 +1,7 @@
 package skrunklysappho.embermotor;
 
-import com.simibubi.create.AllTags.AllBlockTags;
 import com.simibubi.create.foundation.data.SharedProperties;
 import com.tterrag.registrate.util.entry.BlockEntry;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.material.MapColor;
 import skrunklysappho.embermotor.block.EmberMotorBlock;
 import skrunklysappho.embermotor.blockStateGen.EmberMotorBlockStateGen;

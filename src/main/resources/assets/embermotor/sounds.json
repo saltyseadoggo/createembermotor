@@ -1,0 +1,7 @@
+{
+  "block.motor_hum": {
+    "sounds": [
+      "embers:melter_loop"
+    ]
+  }
+}

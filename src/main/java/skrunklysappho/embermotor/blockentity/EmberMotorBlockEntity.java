@@ -3,10 +3,12 @@ package skrunklysappho.embermotor.blockentity;
 import com.rekindled.embers.api.capabilities.EmbersCapabilities;
 import com.rekindled.embers.api.power.IEmberCapability;
 import com.rekindled.embers.power.DefaultEmberCapability;
+import com.rekindled.embers.util.sound.ISoundController;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.Capability;
@@ -14,18 +16,30 @@ import net.minecraftforge.common.util.LazyOptional;
 import skrunklysappho.embermotor.CEMBlocks;
 import skrunklysappho.embermotor.Config;
 import skrunklysappho.embermotor.block.EmberMotorBlock;
+import skrunklysappho.embermotor.sound.CEMSounds;
 
-public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
+import java.util.HashSet;
+
+// ISoundController is Embers' helper for playing looping machine sounds
+public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implements ISoundController {
 
     // Grab the motor's output speed, ember consumption and stress capacity values from the config
     public static final int speedWhilePowered = Config.outputSpeed;
-    public static final double emberConsumption = Config.emberConsumption;
+    public static final double emberCost = Config.emberConsumption;
     public static final float stressCapacity = Config.stressCapacity;
 
     // Float containing the motor's current speed
-    protected float motorSpeedCurrent;
-    // Int containing the motor's *upcoming* speed as determined by lazyTick
-    public int motorSpeedNew = 0;
+    protected float speedCurrent;
+    // Int containing the motor's *upcoming* speed as determined by the `lazyTick` method
+    public int speedNew = 0;
+
+    // Variables needed by `ISoundController`
+    HashSet<Integer> soundsPlaying = new HashSet<>();
+    public static final int SOUND_LOOP = 1;
+    public static final int[] SOUND_IDS = new int[]{SOUND_LOOP};
+
+    // Variable used in `lazyTick`
+    boolean first = true;
 
     // Constructor needed by GeneratingKineticBlockEntity
     public EmberMotorBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -69,7 +83,7 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
     public float getGeneratedSpeed() {
         if (!CEMBlocks.EMBER_MOTOR.has(getBlockState()))
             return 0;
-        return convertToDirection(motorSpeedCurrent, getBlockState().getValue(EmberMotorBlock.FACING));
+        return convertToDirection(speedCurrent, getBlockState().getValue(EmberMotorBlock.FACING));
     }
 
     // More kinetic speed shit from Create's creative motor
@@ -101,37 +115,50 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
     public void read(CompoundTag nbt, boolean clientPacket) {
         super.read(nbt, clientPacket);
         capability.deserializeNBT(nbt);
+        // Set speedCurrent to whatever the motor's NBT data says its rotation speed actually is
+        // - While speedCurrent exists on both the client and server, the code in lazyTick and updateGeneratedRotation
+        //   that sets it only runs on the server, so the client's copy stays at zero
+        // - This prevents shouldPlaySound from detecting when the motor is running to play the motor's sound,
+        //   and the goggles tooltip from showing the correct SU value
+        // - However, the server automatically stores the speed value in the motor's NBT data, so we can use that
+        //   to update the client's copy of speedCurrent and make those things work correctly~
+        speedCurrent = nbt.getFloat("Speed");
     }
 
     // Every second, consume ember to make the motor spin only if there is enough ember to consume
     // - `lazyTick` method comes from Create's `SmartBlockEntity` class
     // - Code adapted from Create Crafts & Additions' electric motor
-    boolean first = true;
     public void lazyTick() {
-        // Call `lazyTick` method in the class we extend, just in case
-        super.lazyTick();
-        // Code block taken from Create Crafts & Additions' electric motor
-        // Without it, the network's stress as seen on a stressometer or in `/data get block` will be NaN
-        if(first) {
-            motorSpeedCurrent = motorSpeedNew;
-            updateGeneratedRotation();
-            first = false;
+        // If level is somehow null, bail now to avoid a crash
+        if(level == null) return;
+        // Only run the following code on the server side, as it involves setting the motor's data
+        if(!level.isClientSide) {
+
+            // Code block taken from Create Crafts & Additions' electric motor
+            // Without it, the network's stress as seen on a stressometer or in `/data get block` will be NaN
+            if (first) {
+                speedCurrent = speedNew;
+                updateGeneratedRotation();
+                first = false;
+            }
+
+            // If the motor has enough ember, consume some to run the motor. If not, stop the motor
+            if (EmberMotorBlockEntity.this.capability.getEmber() >= emberCost) {
+                if (!level.isClientSide) EmberMotorBlockEntity.this.capability.removeAmount(emberCost, true);
+                speedNew = speedWhilePowered;
+            } else {
+                speedNew = 0;
+            }
+            // Update the motor's speed to whatever we determined it should be, either `speedWhilePowered` or zero
+            updateGeneratedRotation(speedNew);
         }
 
-        // Only generate stress units if enough ember is present to consume
-        if (EmberMotorBlockEntity.this.capability.getEmber() >= emberConsumption) {
-            // Consume ember (only on the server side. I'm guessing trying to do this on the client side
-            // would cause a crash when playing on a server, but I can't test that rn)
-            if (!level.isClientSide) EmberMotorBlockEntity.this.capability.removeAmount(emberConsumption, true);
-            // Set generatedSpeed to the configured value for when the motor is running
-            motorSpeedNew = speedWhilePowered;
-        }
+        // Now on the client side, call `ISoundController`'s method to check if the motor started or stopped
+        // and start/stop its looping sound accordingly
+        // - Code adapted from Embers' hearth coil, which does all sound processing only on the client
         else {
-            // When insufficient ember is present to run the motor, set generatedSpeed to 0
-            motorSpeedNew = 0;
+            EmberMotorBlockEntity.this.handleSound();
         }
-        // This needs to run on the client for the goggles tooltip to show the correct SU generation for the motor
-        updateGeneratedRotation(motorSpeedNew);
     }
 
     // Set the motor's current speed to the new speed value determined by `lazyTick`
@@ -139,7 +166,46 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity {
     //   increases after leaving and reentering the world. Adding this middle step fixes the bug, though I don't know why
     // - Code adapted from Create Crafts & Additions' electric motor
     public void updateGeneratedRotation(int newSpeed) {
-        motorSpeedCurrent = newSpeed;
+        speedCurrent = newSpeed;
         super.updateGeneratedRotation();
+    }
+
+    // Method needed to implement Embers' ISoundController for looping sounds.
+    // Code adapted from Embers' field chart to play the motor's looping sound
+    @Override
+    public void playSound(int id) {
+        switch (id) {
+            case SOUND_LOOP:
+                CEMSounds.playMachineSound(this, SOUND_LOOP, CEMSounds.MOTOR_HUM.get(), SoundSource.BLOCKS, true, 1.0f, 1.0f, worldPosition.getX() + 0.5f, worldPosition.getY() + 0.5f, worldPosition.getZ() + 0.5f);
+                break;
+        }
+        soundsPlaying.add(id);
+    }
+
+    // Method needed to implement Embers' ISoundController for looping sounds.
+    // Has no functionality specific to the ember motor. Code copied from Embers' field chart
+    @Override
+    public void stopSound(int id) {
+        soundsPlaying.remove(id);
+    }
+
+    // Method needed to implement Embers' ISoundController for looping sounds.
+    // Has no functionality specific to the ember motor. Code copied from Embers' field chart
+    @Override
+    public boolean isSoundPlaying(int id) {
+        return soundsPlaying.contains(id);
+    }
+
+    // Method needed to implement Embers' ISoundController for looping sounds.
+    // Has no functionality specific to the ember motor. Code copied from Embers' field chart
+    @Override
+    public int[] getSoundIDs() {
+        return SOUND_IDS;
+    }
+
+    // Used by `handleSound` to determine when the looping sound should play. Here we say it should if the motor is spinning
+    @Override
+    public boolean shouldPlaySound(int id) {
+        return speedCurrent > 0;
     }
 }
