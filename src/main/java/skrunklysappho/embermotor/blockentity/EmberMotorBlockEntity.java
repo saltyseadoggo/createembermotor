@@ -123,10 +123,13 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
         // - However, the server automatically stores the speed value in the motor's NBT data, so we can use that
         //   to update the client's copy of speedCurrent and make those things work correctly~
         speedCurrent = nbt.getFloat("Speed");
-        // Then call `ISoundController`'s method to start/stop the looping sound if the motor started or stopped~
-        // - Code adapted from Embers hearth coil
-        // - If this was done in lazyTick instead of here, the sound wouldn't start/stop in sync with the motor
-        EmberMotorBlockEntity.this.handleSound();
+        // Now call `ISoundController`'s method to start/stop the looping sound if the motor started or stopped~
+        // - This can't be done in lazyTick or the sound and motor will not start/stop in sync
+        // - It also must only run on the server side or else relogging will cause the motor to lose all of its ember
+        //   and its network to overstress with a negative stress value if it had machines attached
+        if (level != null && level.isClientSide) {
+            EmberMotorBlockEntity.this.handleSound();
+        }
     }
 
     // Every second, consume ember to make the motor spin only if there is enough ember to consume
