@@ -54,6 +54,9 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
     // Store the face which has the motor's shaft on it. This face cannot receive ember or upgrades
     public Direction shaftFace = this.getBlockState().getValue(EmberMotorBlock.FACING);
 
+    // Whether attached catalytic plugs should consume gas. Set to true by `lazyTick` when the motor is active
+    boolean consumeGas = false;
+
     // Constructor needed by GeneratingKineticBlockEntity
     public EmberMotorBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -167,16 +170,31 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
             // Get and store the current Embers upgrades attached to this motor
             upgrades = UpgradeUtil.getUpgrades(level, blockEntity.worldPosition, getUpgradeSlots());
 
-            // If the motor has enough ember, consume some to run the motor. If not, stop the motor
+            // Check if motor has enough ember to meet its cost
             if (blockEntity.capability.getEmber() >= emberCost) {
-                if (!level.isClientSide) blockEntity.capability.removeAmount(emberCost, true);
-                // If the clockwork attenuator or catalytic plug are attached, modify the motor's speed accordingly
-                speedNew = (float) (speedWhilePowered * UpgradeUtil.getTotalSpeedModifier(blockEntity, blockEntity.upgrades));;
+                // Consume ember
+                blockEntity.capability.removeAmount(emberCost, true);
+                // Set motor's speed, modifying it if clockwork attenuators and/or catalytic plugs are present
+                speedNew = (float) (speedWhilePowered * UpgradeUtil.getTotalSpeedModifier(blockEntity, blockEntity.upgrades));
+                // If catalytic plug is present, make it consume gas
+                consumeGas = true;
             } else {
+                // Stop motor, and stop catalytic plug(s) from consuming gas
                 speedNew = 0;
+                consumeGas = false;
             }
             // Update the motor's speed to whatever we determined it should be, either `speedWhilePowered` or zero
             updateGeneratedRotation(speedNew);
+        }
+    }
+
+    // Make attached catalytic plug upgrades consume gas while the motor is running
+    // - Referencing Embers' machines like the mechanical pump, this must be handled every tick rather than every lazy tick
+    public void tick() {
+        super.tick();
+        if (level != null && !level.isClientSide && consumeGas) {
+            EmberMotorBlockEntity blockEntity = EmberMotorBlockEntity.this;
+            UpgradeUtil.doWork(blockEntity, blockEntity.upgrades);
         }
     }
 
@@ -246,5 +264,5 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
         Direction[] upgradeSlots = new Direction[upgradeSlotsList.size()];
         upgradeSlotsList.toArray(upgradeSlots);
         return upgradeSlots;
-    };
+    }
 }
