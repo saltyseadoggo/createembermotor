@@ -107,6 +107,7 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
     public void write(CompoundTag nbt, boolean clientPacket) {
         super.write(nbt, clientPacket);
         capability.writeToNBT(nbt);
+        nbt.putFloat("Speed", speedCurrent);
     }
 
     // Override NBT data reading method from GeneratingKineticBlockEntity to set motor's ember amount from NBT data
@@ -167,7 +168,6 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
     // - Code adapted from Create Crafts & Additions' electric motor
     public void updateGeneratedRotation(int newSpeed) {
         speedCurrent = newSpeed;
-        super.updateGeneratedRotation();
     }
 
     // Method needed to implement Embers' ISoundController for looping sounds.
@@ -206,6 +206,6 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
     // Used by `handleSound` to determine when the looping sound should play. Here we say it should if the motor is spinning
     @Override
     public boolean shouldPlaySound(int id) {
-        return speedCurrent > 0;
+        return speedCurrent != 0;
     }
 }
