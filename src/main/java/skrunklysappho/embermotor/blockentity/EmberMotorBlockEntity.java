@@ -29,6 +29,8 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
     public static final float stressCapacity = Config.stressCapacity;
 
     // Float containing the motor's current speed
+    // - Server side, its value is decided by `lazyTick` and used to set the motor's speed
+    // - Client side, its value is copied from the `Speed` NBT tag and used to determine if the motor should play its sound
     protected float speedCurrent;
     // Int containing the motor's *upcoming* speed as determined by the `lazyTick` method
     public int speedNew = 0;
@@ -115,19 +117,19 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
     public void read(CompoundTag nbt, boolean clientPacket) {
         super.read(nbt, clientPacket);
         capability.deserializeNBT(nbt);
-        // Set speedCurrent to whatever the motor's NBT data says its rotation speed actually is
-        // - While speedCurrent exists on both the client and server, the code in lazyTick and updateGeneratedRotation
-        //   that sets it only runs on the server, so the client's copy stays at zero
-        // - This prevents shouldPlaySound from detecting when the motor is running to play the motor's sound,
-        //   and the goggles tooltip from showing the correct SU value
-        // - However, the server automatically stores the speed value in the motor's NBT data, so we can use that
-        //   to update the client's copy of speedCurrent and make those things work correctly~
-        speedCurrent = nbt.getFloat("Speed");
-        // Now call `ISoundController`'s method to start/stop the looping sound if the motor started or stopped~
-        // - This can't be done in lazyTick or the sound and motor will not start/stop in sync
-        // - It also must only run on the server side or else relogging will cause the motor to lose all of its ember
-        //   and its network to overstress with a negative stress value if it had machines attached
         if (level != null && level.isClientSide) {
+            // Set speedCurrent to whatever the motor's NBT data says its rotation speed actually is
+            // - While speedCurrent exists on both the client and server, the code in lazyTick and
+            //   updateGeneratedRotation that sets it only runs on the server, so the client's copy stays at zero
+            // - This prevents shouldPlaySound from detecting when the motor is running to play the motor's sound,
+            //   and the goggles tooltip from showing the correct SU value
+            // - However, the server automatically stores the speed value in the motor's NBT data, so we can use that
+            //   to update the client's copy of speedCurrent and make those things work correctly~
+            speedCurrent = nbt.getFloat("Speed");
+            // Now call `ISoundController`'s method to start/stop the looping sound if the motor started or stopped~
+            // - This can't be done in lazyTick or the sound and motor will not start/stop in sync
+            // - It also must only run on the server side or else relogging will cause the motor to lose all of its ember
+            //   and its network to overstress with a negative stress value if it had machines attached
             EmberMotorBlockEntity.this.handleSound();
         }
     }
