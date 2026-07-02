@@ -170,15 +170,16 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
             EmberMotorBlockEntity blockEntity = EmberMotorBlockEntity.this;
             // Get and store the current Embers upgrades attached to this motor
             upgrades = UpgradeUtil.getUpgrades(level, blockEntity.worldPosition, getUpgradeSlots());
-            // Determine what the motor's ember cost will be after being modified by upgrades
+            // Determine what the motor's ember cost and speed while powered will be after being modified by upgrades
             double emberCostAfterUpgrades = UpgradeUtil.getTotalEmberConsumption(blockEntity, emberCost, blockEntity.upgrades);
+            float speedWhilePowered_AfterUpgrades = (float) (speedWhilePowered * UpgradeUtil.getTotalSpeedModifier(blockEntity, blockEntity.upgrades));
 
             // Check if motor has enough ember to meet its cost
-            if (blockEntity.capability.getEmber() >= emberCostAfterUpgrades) {
-                // Consume ember
+            // Also check if a clockwork attenuator has set the motor's speed to zero
+            if (blockEntity.capability.getEmber() >= emberCostAfterUpgrades && speedWhilePowered_AfterUpgrades != 0) {
+                // Consume ember and set motor's speed
                 blockEntity.capability.removeAmount(emberCostAfterUpgrades, true);
-                // Set motor's speed, modifying it if clockwork attenuators and/or catalytic plugs are present
-                speedNew = (float) (speedWhilePowered * UpgradeUtil.getTotalSpeedModifier(blockEntity, blockEntity.upgrades));
+                speedNew = speedWhilePowered_AfterUpgrades;
                 // If catalytic plug is present, tell it to consume gas
                 consumeGas = true;
                 // If mini boiler is present, tell it to boil water
