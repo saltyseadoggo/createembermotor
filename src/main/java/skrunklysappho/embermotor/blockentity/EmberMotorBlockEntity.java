@@ -107,7 +107,6 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
     public void write(CompoundTag nbt, boolean clientPacket) {
         super.write(nbt, clientPacket);
         capability.writeToNBT(nbt);
-        nbt.putFloat("Speed", speedCurrent);
     }
 
     // Override NBT data reading method from GeneratingKineticBlockEntity to set motor's ember amount from NBT data
@@ -124,6 +123,10 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
         // - However, the server automatically stores the speed value in the motor's NBT data, so we can use that
         //   to update the client's copy of speedCurrent and make those things work correctly~
         speedCurrent = nbt.getFloat("Speed");
+        // Then call `ISoundController`'s method to start/stop the looping sound if the motor started or stopped~
+        // - Code adapted from Embers hearth coil
+        // - If this was done in lazyTick instead of here, the sound wouldn't start/stop in sync with the motor
+        EmberMotorBlockEntity.this.handleSound();
     }
 
     // Every second, consume ember to make the motor spin only if there is enough ember to consume
@@ -153,13 +156,6 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
             // Update the motor's speed to whatever we determined it should be, either `speedWhilePowered` or zero
             updateGeneratedRotation(speedNew);
         }
-
-        // Now on the client side, call `ISoundController`'s method to check if the motor started or stopped
-        // and start/stop its looping sound accordingly
-        // - Code adapted from Embers' hearth coil, which does all sound processing only on the client
-        else {
-            EmberMotorBlockEntity.this.handleSound();
-        }
     }
 
     // Set the motor's current speed to the new speed value determined by `lazyTick`
@@ -168,6 +164,7 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
     // - Code adapted from Create Crafts & Additions' electric motor
     public void updateGeneratedRotation(int newSpeed) {
         speedCurrent = newSpeed;
+        super.updateGeneratedRotation();
     }
 
     // Method needed to implement Embers' ISoundController for looping sounds.
