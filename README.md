@@ -1,0 +1,2 @@
+# Create Ember Motor
+Create Ember Motor acts as a bridge between the energy systems added by Embers Rekindled and Create. Its sole addition is the titular ember motor, which consumes Embers ember to produce Create kinetic force.
