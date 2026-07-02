@@ -16,8 +16,7 @@ public class CEMBlocks {
     public static final BlockEntry<EmberMotorBlock> EMBER_MOTOR =
             CreateEmberMotorMod.REGISTRATE.block("ember_motor", EmberMotorBlock::new)
                     .initialProperties(SharedProperties::stone)
-                    // TODO: Set map color to smth more fitting
-                    .properties(p -> p.mapColor(MapColor.COLOR_PURPLE).forceSolidOn())
+                    .properties(p -> p.mapColor(MapColor.COLOR_GRAY).forceSolidOn())
                     .blockstate(new EmberMotorBlockStateGen()::generate)
                     .item()
                     .transform(customItemModel())
