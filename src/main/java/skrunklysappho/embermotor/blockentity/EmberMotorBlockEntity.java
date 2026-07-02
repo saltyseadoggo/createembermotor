@@ -1,6 +1,7 @@
 package skrunklysappho.embermotor.blockentity;
 
 import com.rekindled.embers.api.capabilities.EmbersCapabilities;
+import com.rekindled.embers.api.event.EmberEvent;
 import com.rekindled.embers.api.power.IEmberCapability;
 import com.rekindled.embers.api.tile.IUpgradeable;
 import com.rekindled.embers.api.upgrades.UpgradeContext;
@@ -169,15 +170,19 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
             EmberMotorBlockEntity blockEntity = EmberMotorBlockEntity.this;
             // Get and store the current Embers upgrades attached to this motor
             upgrades = UpgradeUtil.getUpgrades(level, blockEntity.worldPosition, getUpgradeSlots());
+            // Determine what the motor's ember cost will be after being modified by upgrades
+            double emberCostAfterUpgrades = UpgradeUtil.getTotalEmberConsumption(blockEntity, emberCost, blockEntity.upgrades);
 
             // Check if motor has enough ember to meet its cost
-            if (blockEntity.capability.getEmber() >= emberCost) {
+            if (blockEntity.capability.getEmber() >= emberCostAfterUpgrades) {
                 // Consume ember
-                blockEntity.capability.removeAmount(emberCost, true);
+                blockEntity.capability.removeAmount(emberCostAfterUpgrades, true);
                 // Set motor's speed, modifying it if clockwork attenuators and/or catalytic plugs are present
                 speedNew = (float) (speedWhilePowered * UpgradeUtil.getTotalSpeedModifier(blockEntity, blockEntity.upgrades));
-                // If catalytic plug is present, make it consume gas
+                // If catalytic plug is present, tell it to consume gas
                 consumeGas = true;
+                // If mini boiler is present, tell it to boil water
+                UpgradeUtil.throwEvent(blockEntity, new EmberEvent(blockEntity, EmberEvent.EnumType.CONSUME, emberCostAfterUpgrades), blockEntity.upgrades);
             } else {
                 // Stop motor, and stop catalytic plug(s) from consuming gas
                 speedNew = 0;
