@@ -2,6 +2,9 @@ package skrunklysappho.embermotor.blockentity;
 
 import com.rekindled.embers.api.capabilities.EmbersCapabilities;
 import com.rekindled.embers.api.power.IEmberCapability;
+import com.rekindled.embers.api.tile.IUpgradeable;
+import com.rekindled.embers.api.upgrades.UpgradeContext;
+import com.rekindled.embers.api.upgrades.UpgradeUtil;
 import com.rekindled.embers.power.DefaultEmberCapability;
 import com.rekindled.embers.util.sound.ISoundController;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
@@ -18,12 +21,16 @@ import skrunklysappho.embermotor.Config;
 import skrunklysappho.embermotor.block.EmberMotorBlock;
 import skrunklysappho.embermotor.sound.CEMSounds;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 // ISoundController is Embers' helper for playing looping machine sounds
-public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implements ISoundController {
+public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implements ISoundController, IUpgradeable {
 
     // Grab the motor's output speed, ember consumption and stress capacity values from the config
+    // - Note that `speedWhilePowered` is only the *base* speed. Clockwork attenuators can reduce it,
+    //   while catalytic plugs can increase it. These multipliers are handled in `lazyTick`
     public static final int speedWhilePowered = Config.outputSpeed;
     public static final double emberCost = Config.emberConsumption;
     public static final float stressCapacity = Config.stressCapacity;
@@ -33,15 +40,19 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
     // - Client side, its value is copied from the `Speed` NBT tag and used to determine if the motor should play its sound
     protected float speedCurrent;
     // Int containing the motor's *upcoming* speed as determined by the `lazyTick` method
-    public int speedNew = 0;
+    public float speedNew = 0;
 
     // Variables needed by `ISoundController`
     HashSet<Integer> soundsPlaying = new HashSet<>();
     public static final int SOUND_LOOP = 1;
     public static final int[] SOUND_IDS = new int[]{SOUND_LOOP};
 
-    // Variable used in `lazyTick`
+    // Variables used in `lazyTick`
     boolean first = true;
+    private List<UpgradeContext> upgrades;
+
+    // Store the face which has the motor's shaft on it. This face cannot receive ember or upgrades
+    public Direction shaftFace = this.getBlockState().getValue(EmberMotorBlock.FACING);
 
     // Constructor needed by GeneratingKineticBlockEntity
     public EmberMotorBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -67,7 +78,7 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
     public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side) {
         // The facing check prevents ember from being pushed into the motor through the front
         // (where the shaft is) by not giving that side the ember capability
-        if (!this.remove && side != this.getBlockState().getValue(EmberMotorBlock.FACING) && cap == EmbersCapabilities.EMBER_CAPABILITY) {
+        if (!this.remove && side != shaftFace && cap == EmbersCapabilities.EMBER_CAPABILITY) {
             return capability.getCapability(cap, side);
         }
         return super.getCapability(cap, side);
@@ -151,10 +162,16 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
                 first = false;
             }
 
+            // Store this specific motor's block entity so we can access it easier
+            EmberMotorBlockEntity blockEntity = EmberMotorBlockEntity.this;
+            // Get and store the current Embers upgrades attached to this motor
+            upgrades = UpgradeUtil.getUpgrades(level, blockEntity.worldPosition, getUpgradeSlots());
+
             // If the motor has enough ember, consume some to run the motor. If not, stop the motor
-            if (EmberMotorBlockEntity.this.capability.getEmber() >= emberCost) {
-                if (!level.isClientSide) EmberMotorBlockEntity.this.capability.removeAmount(emberCost, true);
-                speedNew = speedWhilePowered;
+            if (blockEntity.capability.getEmber() >= emberCost) {
+                if (!level.isClientSide) blockEntity.capability.removeAmount(emberCost, true);
+                // If the clockwork attenuator or catalytic plug are attached, modify the motor's speed accordingly
+                speedNew = (float) (speedWhilePowered * UpgradeUtil.getTotalSpeedModifier(blockEntity, blockEntity.upgrades));;
             } else {
                 speedNew = 0;
             }
@@ -167,7 +184,7 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
     // - If we use `motorSpeedNew` in the `getGeneratedSpeed` method, it introduces a bug where the motor's stress capacity
     //   increases after leaving and reentering the world. Adding this middle step fixes the bug, though I don't know why
     // - Code adapted from Create Crafts & Additions' electric motor
-    public void updateGeneratedRotation(int newSpeed) {
+    public void updateGeneratedRotation(float newSpeed) {
         speedCurrent = newSpeed;
         super.updateGeneratedRotation();
     }
@@ -210,4 +227,24 @@ public class EmberMotorBlockEntity extends GeneratingKineticBlockEntity implemen
     public boolean shouldPlaySound(int id) {
         return speedCurrent != 0;
     }
+
+    // Allow Embers upgrades to be attached to all sides except the one with the shaft
+    @Override
+    public boolean isSideUpgradeSlot(Direction face) {
+        return face != shaftFace;
+    }
+
+    // Create an array containing every face that upgrades can be attached to
+    public Direction[] getUpgradeSlots() {
+        Direction[] allFaces = {Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST, Direction.UP, Direction.DOWN};
+        List<Direction> upgradeSlotsList = new ArrayList<>();
+        for (Direction face : allFaces) {
+            if (face != shaftFace) {
+                upgradeSlotsList.add(face);
+            }
+        }
+        Direction[] upgradeSlots = new Direction[upgradeSlotsList.size()];
+        upgradeSlotsList.toArray(upgradeSlots);
+        return upgradeSlots;
+    };
 }
